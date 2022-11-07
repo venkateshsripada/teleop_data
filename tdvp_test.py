@@ -21,7 +21,7 @@ from pickle import load
 from datetime import datetime
 from torch.utils.data import Dataset
 
-from tdvp import ACTVP_double as ACTVP
+from tdvp_big import ACTVP_double as ACTVP
 
 model_path      = "/home/user/Robotics/tactile_prediction/tactile_prediction/models/ACTVP/saved_models/model_double_07_01_2022_13_25/ACTVP_double"
 data_save_path  = "/home/user/Robotics/tactile_prediction/tactile_prediction/models/ACTVP/saved_models/model_double_07_01_2022_13_25/scaled_test/"
@@ -70,16 +70,16 @@ class FullDataSet:
 
     def __getitem__(self, idx):
         value = self.samples[idx]
-        robot_data = np.load(test_data_dir + value[0])
+        robot_task_data = np.load(test_data_dir + value[0])
+        robot_joint_data = np.load(test_data_dir + value[1])
 
-        tactile_images = []
-        for image_name in np.load(test_data_dir + value[2]):
-            tactile_images.append(np.load(test_data_dir + image_name))
+        side_camera_image_names = []
+        for image_name in np.load(test_data_dir + value[3]):
+            side_camera_image_names.append(np.load(test_data_dir + image_name))
 
-        experiment_number = np.load(test_data_dir + value[3])
-        time_steps = np.load(test_data_dir + value[4])
-        meta = test_data_dir + value[5]
-        return [robot_data.astype(np.float32), np.array(tactile_images).astype(np.float32), experiment_number, time_steps, meta]
+        experiment_number = np.load(test_data_dir + value[4])
+        time_steps = np.load(test_data_dir + value[5])
+        return [robot_task_data.astype(np.float32), robot_joint_data.astype(np.float32), np.array(side_camera_image_names).astype(np.float32), np.array(experiment_number).astype(np.float32), np.array(time_steps).astype(np.float32)]
 
 
 class ConvLSTMCell(nn.Module):
@@ -122,7 +122,7 @@ class ConvLSTMCell(nn.Module):
 #         self.batch_size = actions.shape[1]
 #         state = actions[0]
 #         state.to(device)
-#         batch_size__ = tactiles.shape[1]
+#         batch_size__ = tactiles.shape[1]meta
 #         hidden_1, cell_1 = self.convlstm1.init_hidden(batch_size=self.batch_size, image_size=(32, 32))
 #         hidden_2, cell_2 = self.convlstm2.init_hidden(batch_size=self.batch_size, image_size=(32, 32))
 #         outputs = []
@@ -211,12 +211,7 @@ class image_player():
         plt.title(i)
         self.im1.set_data(self.grab_frame())
         self.indexyyy += 1
-        if self.indexyyy == len(self.images):
-            self.indexyyy = 0
-
-    def run_the_tape(self, images):
-        self.indexyyy = 0
-        self.images = images
+        if self.indexyyy == len(self.images):data_save_path
         ax1 = plt.subplot(1, 2, 1)
         self.im1 = ax1.imshow(self.grab_frame(), cmap='gray', vmin=0, vmax=255)
         ani = FuncAnimation(plt.gcf(), self.update, interval=20.8, save_count=len(images), repeat=False)
@@ -249,14 +244,14 @@ class ModelTester:
         self.current_exp = 0
 
         for index, batch_features in enumerate(self.test_full_loader):
-            tactile = batch_features[1].permute(1, 0, 4, 3, 2).to(device)
-            action = batch_features[0].squeeze(-1).permute(1, 0, 2).to(device)
-            tactile_predictions = self.full_model.forward(tactiles=tactile,
-                                                           actions=action)  # Step 3. Run our forward pass.
+            side_camera = batch_features[2].permute(1, 0, 4, 3, 2).to(device)
+            robot_joint = batch_features[0].squeeze(-1).permute(1, 0, 2).to(device)
+            side_camera_predictions = self.full_model.forward(tactiles=side_camera,
+                                                           actions=robot_joint)  # Step 3. Run our forward pass.
 
-            experiment_number = batch_features[2].permute(1, 0)[context_frames:]
-            time_steps = batch_features[3].permute(1, 0)[context_frames:]
-            self.meta = batch_features[4][0]
+            experiment_number = batch_features[3].permute(1, 0)[context_frames:]
+            time_steps = batch_features[4].permute(1, 0)[context_frames:]
+            self.meta = batch_features[5][0]
 
             current_batch = 0
             new_batch = 0
@@ -268,18 +263,18 @@ class ModelTester:
 
             for i in [0, 1]:
                 if i == 0:
-                    tactile_cut = tactile[:, 0:current_batch, :, :, :]
-                    tactile_predictions_cut = tactile_predictions[:, 0:current_batch, :, :, :]
+                    side_camera_cut = side_camera[:, 0:current_batch, :, :, :]
+                    side_camera_predictions_cut = side_camera_predictions[:, 0:current_batch, :, :, :]
                     experiment_number_cut = experiment_number[:, 0:current_batch]
                     time_steps_cut = time_steps[:, 0:current_batch]
                 if i == 1:
-                    tactile_cut = tactile[:, current_batch:, :, :, :]
-                    tactile_predictions_cut = tactile_predictions[:, current_batch:, :, :, :]
+                    side_camera_cut = side_camera[:, current_batch:, :, :, :]
+                    side_camera_predictions_cut = side_camera_predictions[:, current_batch:, :, :, :]
                     experiment_number_cut = experiment_number[:, current_batch:]
                     time_steps_cut = time_steps[:, current_batch:]
 
                 self.prediction_data.append(
-                    [tactile_predictions_cut.cpu().detach(), tactile_cut[context_frames:].cpu().detach(),
+                    [side_camera_predictions_cut.cpu().detach(), side_camera_cut[context_frames:].cpu().detach(),
                      experiment_number_cut.cpu().detach(), time_steps_cut.cpu().detach()])
 
                 # convert back to 48 feature tactile readings for plotting:
@@ -287,18 +282,18 @@ class ModelTester:
                 p1 = []
                 p5 = []
                 p10 = []
-                for batch_value in range(tactile_predictions_cut.shape[1]):
+                for batch_value in range(side_camera_predictions_cut.shape[1]):
                     gt.append(cv2.resize(
-                        tactile_cut[context_frames - 1][batch_value].permute(1, 2, 0).cpu().detach().numpy(),
+                        side_camera_cut[context_frames - 1][batch_value].permute(1, 2, 0).cpu().detach().numpy(),
                         dsize=(4, 4), interpolation=cv2.INTER_CUBIC).flatten())
                     p1.append(cv2.resize(
-                        tactile_predictions_cut[0][batch_value].permute(1, 2, 0).cpu().detach().numpy(),
+                        side_camera_predictions_cut[0][batch_value].permute(1, 2, 0).cpu().detach().numpy(),
                         dsize=(4, 4), interpolation=cv2.INTER_CUBIC).flatten())
                     p5.append(cv2.resize(
-                        tactile_predictions_cut[4][batch_value].permute(1, 2, 0).cpu().detach().numpy(),
+                        side_camera_predictions_cut[4][batch_value].permute(1, 2, 0).cpu().detach().numpy(),
                         dsize=(4, 4), interpolation=cv2.INTER_CUBIC).flatten())
                     p10.append(cv2.resize(
-                        tactile_predictions_cut[9][batch_value].permute(1, 2, 0).cpu().detach().numpy(),
+                        side_camera_predictions_cut[9][batch_value].permute(1, 2, 0).cpu().detach().numpy(),
                         dsize=(4, 4), interpolation=cv2.INTER_CUBIC).flatten())
 
                 gt = np.array(gt)
