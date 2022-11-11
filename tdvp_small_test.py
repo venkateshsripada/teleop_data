@@ -15,21 +15,23 @@ class BatchGenerator:
     def __init__(self, batch_size, test_directory):
         self.batch_size = batch_size
         self.data_map = []
+        self.test_directory = test_directory
         # val = int(test_data_dir[-2]) + 34
-        val = test_data_dir[-2]
+        val = test_directory[-1]
         with open(test_directory + '/map_' + str(val) + '.csv', 'r') as f:  # rb
             reader = csv.reader(f)
             for row in reader:
                 self.data_map.append(row)
 
     def load_full_data(self):
-        dataset_test = FullDataSet(self.data_map)
+        dataset_test = FullDataSet(self.data_map, self.test_directory)
         test_loader = torch.utils.data.DataLoader(dataset_test, batch_size=self.batch_size, shuffle=False)
         self.data_map = []
         return test_loader
 
 class FullDataSet:
-    def __init__(self, data_map):
+    def __init__(self, data_map, test_direc):
+        self.test_directory = test_direc
         self.samples = data_map[1:]
         data_map = None
 
@@ -38,15 +40,15 @@ class FullDataSet:
 
     def __getitem__(self, idx):
         value = self.samples[idx]
-        robot_task_data = np.load(test_data_dir + value[0])
-        robot_joint_data = np.load(test_data_dir + value[1])
+        robot_task_data = np.load(self.test_directory + "/" + value[0])
+        robot_joint_data = np.load(self.test_directory + "/" + value[1])
 
         side_camera_image_names = []
-        for image_name in np.load(test_data_dir + value[3]):
-            side_camera_image_names.append(np.load(test_data_dir + image_name))
+        for image_name in np.load(self.test_directory + "/" + value[3]):
+            side_camera_image_names.append(np.load(self.test_directory + "/" + image_name))
 
-        experiment_number = np.load(test_data_dir + value[4])
-        time_steps = np.load(test_data_dir + value[5])
+        experiment_number = np.load(self.test_directory + "/" +value[4])
+        time_steps = np.load(self.test_directory + "/" + value[5])
         return [robot_task_data.astype(np.float32), robot_joint_data.astype(np.float32), np.array(side_camera_image_names).astype(np.float32), np.array(experiment_number).astype(np.float32), np.array(time_steps).astype(np.float32)]
 
 class ConvLSTMCell(nn.Module):
