@@ -4,20 +4,21 @@ import glob
 import math
 import numpy as np
 from PIL import Image
+from tqdm import tqdm
 from matplotlib import pyplot as plt
 
 import torch
 import torch.nn as nn
 
-from tdvp import ACTVP
+from tdvp_big import ACTVP
 
 class BatchGenerator:
     def __init__(self, batch_size, test_directory):
         self.batch_size = batch_size
         self.data_map = []
         self.test_directory = test_directory
-        # val = int(test_data_dir[-2]) + 34
-        val = test_directory[-1]
+        val = int(test_directory[-1]) + 34
+        # val = test_directory[-1]
         with open(test_directory + '/map_' + str(val) + '.csv', 'r') as f:  # rb
             reader = csv.reader(f)
             for row in reader:
@@ -86,13 +87,15 @@ class Test:
         self.current_exp = 0
         self.index = 0
 
+        self.performance_data_all = []
+
         # self.model = ACTVP()
         self.model = torch.load(model_save_path)
         # self.model.load_state_dict(saved_model)
         self.criterion = nn.L1Loss()
 
         experiment_number_files = glob.glob(exp_test_dir + "/*") 
-        for index, directory in enumerate(experiment_number_files):
+        for index, directory in tqdm(enumerate(experiment_number_files)):
             
             BG = BatchGenerator(batch_size = self.batch_size, test_directory=directory)
             self.test_full_loader = BG.load_full_data()
@@ -112,8 +115,13 @@ class Test:
                 # batch_losses.append(self.calculate_scores(predictions_scene, groundtruth_scene[context_frames:]))
 
                 # # Qualitative analysis
-                # if batch_features[4] == 5 and batch_features[5][0] == 25:   
-                #     self.save_images(predictions_scene, groundtruth_scene[context_frames:], index)
+                # Context of 5 to 14 across all experiments. 
+                print(type(int(batch_features[4][0][5].item())))
+                if (int(batch_features[4][0][5].item() )) == int(5): # and batch_features[5][0] == 25
+                    print("In here")
+                    self.save_images(batch_features, groundtruth_scene[context_frames:], predictions_scene)
+                
+                self.prediction_data = []
     
 
     def format_and_run_batch(self, batch_features, test):
@@ -161,7 +169,7 @@ class Test:
         # self.save_predictions(self.current_exp)
         # self.create_test_plots(self.current_exp)
         # self.create_difference_gifs(self.current_exp)
-        self.prediction_data = []
+        
         self.current_exp += 1
     
         return side_camera, self.prediction_data
@@ -192,9 +200,10 @@ class Test:
         performance_data_full = []
         performance_data_full.append (["test loss MAE(L1): ", (
                     sum (self.performance_data) / len (self.performance_data))])
+        self.performance_data_all.append(sum (self.performance_data) / len (self.performance_data))
 
         [print (i) for i in performance_data_full]
-        np.save (data_save_path + 'model_performance_loss_data', np.asarray (performance_data_full))
+        np.save (data_save_path + 'model_performance_loss_data', np.asarray (self.performance_data_all))
 
 
     def calculate_scores(self, prediction_scene, groundtruth_scene, prediction_tactile=None, groundtruth_tactile=None):
@@ -209,14 +218,31 @@ class Test:
 
         return [scene_losses_full, scene_losses_last]
 
+
+    def save_images(self, batch_features, side_camera, side_camera_predictions):
+
+        for index, batch in enumerate(batch_features):
+
+            experiment = str(batch[4][0])
+            time_step = str(batch[5][0])
+
+            for image_gt, image_pred in zip(side_camera[index][context_frames:], side_camera_predictions[index]):
+                im = Image.fromarray(image_gt)
+                im.save("imageGT_ " + experiment  + " time_step_" +  time_step + ".jpeg")
+
+                im = Image.fromarray(image_pred)
+                im.save("imagePRED_ " + experiment  + " time_step_" +  time_step + ".jpeg")
+            
+                # save numpy:
+
 if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")#  use gpu if available
     context_frames = 5
 
-    data_save_path  = "/home/venky/time_delay_vp/models/THDloss_model_04_11_2022_16_04/scaled_test/"
-    model_save_path = "/home/venky/time_delay_vp/models/THDloss_model_04_11_2022_16_04/ACTVP_THD"
-    test_data_dir   = "/home/venky/time_delay_vp/test_out/test_trial_0/"
-    exp_test_dir   = "/home/venky/time_delay_vp/test_out"
+    data_save_path  = "/home/venkatesh/tdvp/teleop_data/models/THDloss_model_07_11_2022_14_41/test/"
+    model_save_path = "/home/venkatesh/tdvp/teleop_data/models/THDloss_model_07_11_2022_14_41/ACTVP_THD"
+    # test_data_dir   = "/home/venky/time_delay_vp/test_out/test_trial_0/"
+    exp_test_dir = "/home/venkatesh/tdvp/teleop_data/test_out/"
 
     t = Test(model_save_path)
     # t.test_model()
