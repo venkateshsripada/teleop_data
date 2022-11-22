@@ -1,0 +1,6 @@
+<launch>
+	<group ns="leader">
+   		<node name="my_moveit_node" pkg="franka_teleoperation" type="data_collection.py" 
+        respawn="false" 	output="screen" />    
+	</group>
+</launch>
