@@ -1,0 +1,76 @@
+<?xml version="1.0" ?>
+<launch>
+
+    <arg name="robot_ip" default="172.16.0.2"/>
+    <arg name="load_gripper" default="true" />
+    <arg name="load_camera" default="false" />
+    <arg name="arm_id" default="panda_follower" />
+
+    <group ns="$(arg arm_id)">
+        <param name="robot_description" command="$(find xacro)/xacro $(find panda_teleoperation)/xacro/franka_arm.urdf.xacro arm_id:=$(arg arm_id) hand:=$(arg load_gripper)" />
+
+        <node pkg="tf" type="static_transform_publisher" name="world_link_broadcaster" 
+            args="0.001 0.0 0.0  0.0 0.0 0.0  panda_link0 world 100" />
+
+        <!-- table static publisher -->
+        <node pkg="tf" type="static_transform_publisher" name="table_link_broadcaster" 
+            args="0.5 0.25 0.0  0.0 0.0 0.0  panda_link0 table 100" />
+
+        <!--Real time lidar launch files-->
+        <!--include file="$(find ydlidar_ros_driver)/launch/X4.launch" /-->
+
+        <include file="$(find franka_gripper)/launch/franka_gripper.launch" if="$(arg load_gripper)">
+            <arg name="robot_ip" value="$(arg robot_ip)" />
+        </include>
+
+        <node name="franka_control" pkg="franka_control" type="franka_control_node" output="screen" required="true">
+            <rosparam command="load" file="$(find panda_teleoperation)/config/panda_follower_control_node.yaml" />
+            <param name="robot_ip" value="$(arg robot_ip)" />
+        </node>
+
+        <rosparam command="load" file="$(find panda_teleoperation)/config/panda_follower_controller.yaml" />
+        <node name="state_controller_spawner" pkg="controller_manager" type="spawner" respawn="false" output="screen" args="panda_follower_state_controller "/>
+        <node name="pos_traj_controller_spawner" pkg="controller_manager" type="spawner" respawn="false" output="screen" args="panda_follower_joint_trajectory_controller"/>
+        <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" output="screen"/>
+    
+        <node name="joint_state_publisher" type="joint_state_publisher" pkg="joint_state_publisher" output="screen">
+            <rosparam if="$(arg load_gripper)" param="source_list">[panda_follower_state_controller/joint_states, franka_gripper/joint_states] </rosparam>
+            <rosparam unless="$(arg load_gripper)" param="source_list">[panda_follower_state_controller/joint_states] </rosparam>
+            <param name="rate" value="30"/>
+        </node>
+
+ 
+        <!-- <node name="panda_follower_pos_control_ui_node" type="rqt_joint_trajectory_controller" pkg="rqt_joint_trajectory_controller" output="screen"/> -->
+
+        <group if="$(arg load_camera)" >
+            <!-- robot grasp frame to camera color optical tf -->
+            <include file="$(find fastpick_description)/launch/franka_ee_to_cam_optical_pose.launch"/>
+
+            <include file="$(find realsense2_camera)/launch/includes/nodelet.launch.xml">
+                <arg name="serial_no"         value=""/>
+                <arg name="json_file_path"    value=""/>
+                <arg name="depth_width"       value="640"/>
+                <arg name="depth_height"      value="480"/>
+                <arg name="depth_fps"         value="30"/>
+                <arg name="color_width"       value="640"/>
+                <arg name="color_height"      value="480"/>
+                <arg name="color_fps"         value="30"/>
+                <arg name="enable_depth"      value="true"/>
+                <arg name="enable_color"      value="true"/>
+                <arg name="enable_infra1"     value="false"/>
+                <arg name="enable_infra2"     value="false"/>
+                <arg name="enable_fisheye"    value="false"/>
+                <arg name="enable_gyro"       value="false"/>
+                <arg name="enable_accel"      value="false"/>
+                <arg name="enable_pointcloud" value="true"/>
+                <arg name="enable_sync"       value="true"/>
+                <arg name="align_depth"         default="true"/>
+                <arg name="tf_prefix"         value="top_camera"/>
+                <arg name="publish_tf"               default="true"/>
+                <arg name="tf_publish_rate"          default="0"/> <!-- 0 - static transform -->
+            </include>
+        </group>
+
+    </group>
+
+</launch>

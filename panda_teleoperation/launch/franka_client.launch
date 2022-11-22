@@ -1,0 +1,7 @@
+<launch>
+    <group ns="follower">
+        <include file="$(find franka_control)/launch/franka_control.launch"  >
+            <arg name="robot_ip" value="172.16.0.2"/>
+        </include>
+    </group>
+</launch>

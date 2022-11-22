@@ -1,0 +1,7 @@
+<library path="lib/libpanda_teleoperation">
+  <class name="panda_teleoperation/LeaderCartesianImpedanceController" type="panda_teleoperation::LeaderCartesianImpedanceController" base_class_type="controller_interface::ControllerBase">
+    <description>
+       An impendance controller for Franka Panda robotic arm with the option to provide task space haptic forces and torques
+    </description>
+  </class>
+</library>

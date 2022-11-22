@@ -1,0 +1,26 @@
+<launch> 
+
+    <arg name="load_camera" default="false" />
+    <arg name="device_name" default="/dev/video0" />
+    <arg name="rqt_file" default="$(find panda_teleoperation)/config/cameras_teleop.perspective"/>
+ 
+    <node name="haptic_control_node" pkg="panda_teleoperation" type="haptic_based_teleoperation.py" respawn="false" output="screen"/>
+
+    <node name="camera_perspective_node" pkg="rqt_gui" type="rqt_gui" respawn="false" output="screen" args=" --perspective-file $(arg rqt_file)"/>
+
+    <arg name="subject_name" default="Unknown" />
+    <arg name="task_name" default="pick"/>
+    <arg name="topic_names" default="/panda_follower/panda_follower_state_controller/franka_states speech_to_text_results" />
+    <node name="rosbag_record_node" pkg="rosbag" type="record" respawn="false" output="screen" 
+        args=
+        " 
+            $(arg topic_names) 
+            -o $(arg subject_name)_$(arg task_name)_teleop_
+            -p 
+ 
+            --split --duration=10m
+        "
+    />
+
+</launch> 
+

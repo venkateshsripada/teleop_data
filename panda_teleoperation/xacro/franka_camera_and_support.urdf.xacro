@@ -1,0 +1,52 @@
+<?xml version="1.0"?>
+<robot name="camera_and_support" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+    <xacro:include filename="$(find fastpick_description)/xacro/intel_d435.urdf.xacro"/>
+    
+    <xacro:sensor_r430 prefix="top" prefix_topic="" parent="camera_support_link">
+        <origin xyz="0.0725 0.0 -0.0295" rpy="0 ${pi/2} 0" />
+    </xacro:sensor_r430>
+
+    <joint name="camera_support_joint" type="fixed">
+      <origin xyz="0 0 0.00" rpy="${pi} 0 ${-pi/4}"/>
+      <parent link="panda_link8"/>
+      <child link="camera_support_link" />
+    </joint>
+  
+    <link name='fastpick_grasp_link'>
+    </link>
+
+    <!-- xyz="0.0 0.0000 -0.105" -->
+    <joint name='fastpick_grasp_joint' type='fixed'>
+        <origin
+        xyz="0.0 0.0000 -0.105"
+        rpy="0 0 0" />
+        <parent
+        link="camera_support_link" />
+        <child
+        link="fastpick_grasp_link" />
+    </joint>
+
+    <link name="camera_support_link"/>
+
+    <!-- <link name="camera_support_link">
+      <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>		  
+          <mesh filename="package://fastpick_description/meshes/franka_camera_support.STL" />
+        </geometry>
+      </visual>
+      <collision>
+        <origin xyz="0 0 0" rpy="0 0 0"/>        
+        <geometry>
+        <mesh filename="package://fastpick_description/meshes/franka_camera_support.STL" /></geometry>
+      </collision>
+      <inertial>
+        <mass value="0.025" />
+        <origin xyz="0 0 0" />
+        <inertia ixx="0.000" ixy="0.0" ixz="0.0" iyy="0.0" iyz="0.0" izz="0.0" />
+      </inertial>
+    </link> -->
+
+
+</robot>
