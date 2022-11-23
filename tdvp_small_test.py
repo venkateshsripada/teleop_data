@@ -3,6 +3,7 @@ import csv
 import glob
 import math
 import numpy as np
+from tqdm import tqdm
 from PIL import Image
 from matplotlib import pyplot as plt
 
@@ -109,32 +110,47 @@ class Test:
         self.calculate_test_performance()
 
     def test_model(self):
-        batch_losses = []
         self.performance_data = []
+        self.save_performance_data = []
+        test_loss= []
+        val = True
 
-        for index, batch_features in enumerate(self.test_full_loader):
-            
-            # self.test_image(batch_features)
-            groundtruth_scene, predictions_scene = self.format_and_run_batch(batch_features, index)
-            self.calculate_test_performance() 
-            print("Here")
+        progress_bar = tqdm(range(0, epochs), total=(epochs*len(self.test_full_loader)))
+        for epoch in progress_bar:
+            for index, batch_features in enumerate(self.test_full_loader):
+                
+                # self.test_image(batch_features)
+                groundtruth_scene, predictions_scene = self.format_and_run_batch(batch_features, index)
+                # Saving the image
+                if val == True:
+                    self.test_image(groundtruth_scene, index=index, modify_img_shape=True, gt=True)
+                    self.test_image(predictions_scene, index=index, modify_img_shape=True, prediction=True)
+                    val = False
+                self.calculate_test_performance() 
+                # print("Here")
 
-            # Quantitative analysis
-            # batch_losses.append(self.calculate_scores(predictions_scene, groundtruth_scene[context_frames:]))
+                # Quantitative analysis
+                # batch_losses.append(self.calculate_scores(predictions_scene, groundtruth_scene[context_frames:]))
 
-            # # Qualitative analysis
-            print(type(int(batch_features[4][0][5].item())))
-            # Looking at time steps 5 to 14 across all experiments and saving them
-            if (int(batch_features[4][0][5].item() )) == int(5): # and batch_features[5][0] == 25
-                print("In here")
-                # self.save_images(batch_features, groundtruth_scene, predictions_scene)
-            
+                # # Qualitative analysis
+                # print(type(int(batch_features[4][0][5].item())))
+                # Looking at time steps 5 to 14 across all experiments and saving them
+                if (int(batch_features[4][0][5].item() )) == int(5): # and batch_features[5][0] == 25
+                    # print("In here")
+                    pass
+                    # self.save_images(batch_features, groundtruth_scene, predictions_scene)
+                
 
-            # if batch_features[4] == 5 and batch_features[5][0] == 25:   
-            #     self.save_images(predictions_scene, groundtruth_scene[context_frames:], index)
+                # if batch_features[4] == 5 and batch_features[5][0] == 25:   
+                #     self.save_images(predictions_scene, groundtruth_scene[context_frames:], index)
+            progress_bar.update()
+
+            test_loss.append( np.mean(self.save_performance_data))
+            self.save_performance_data = []
+        np.save (data_save_path + 'model_performance_loss_data_all', np.asarray (test_loss))
     
 
-    def test_image(self, batch_features, index = None, modify_img_shape=False):
+    def test_image(self, batch_features, index = None, modify_img_shape=False, prediction=False, gt = False):
         # side_camera = batch_features[2].to(device)
         side_camera_cut = batch_features
 
@@ -146,7 +162,10 @@ class Test:
         img = np.rot90(np.fliplr(img))
         im = Image.fromarray((img*255).astype(np.uint8)).convert("RGB")
         # im.save("Image_gt.jpeg")
-        im.save("Image_gt" + str(index) + ".jpeg")
+        if prediction == True:
+            im.save("Image_pred" + str(index) + ".jpeg")
+        if gt == True:
+            im.save("Image_gt" + str(index) + ".jpeg")
 
     def pad_data(self, batch_features):
         dim_task_space = batch_features[0].shape
@@ -201,12 +220,12 @@ class Test:
             side_camera_predictions_cut = side_camera_predictions[:, :, :, :, :]
 
         # Saving the image
-        self.test_image(side_camera_cut, index=index, modify_img_shape=True)
+        # self.test_image(side_camera_predictions_cut, index=index, modify_img_shape=True)
 
         self.prediction_data.append(
             [side_camera_cut[context_frames:].cpu().detach(), side_camera_predictions_cut.cpu().detach()])
 
-        print ("currently testing trial number: ", str (self.current_exp))
+        # print ("currently testing trial number: ", str (self.current_exp))
         # self.calc_train_trial_performance()
             
         self.calc_trial_preformance()
@@ -248,7 +267,8 @@ class Test:
         performance_data_full.append (["test loss MAE(L1): ", (
                     sum (self.performance_data) / len (self.performance_data))])
 
-        [print (i) for i in performance_data_full]
+        # [print (i) for i in performance_data_full]
+        self.save_performance_data.append(sum (self.performance_data) / len (self.performance_data))
         np.save (data_save_path + 'model_performance_loss_data', np.asarray (performance_data_full))
 
 
@@ -297,11 +317,17 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")#  use gpu if available
     context_frames = 5
     batch_size = 32
+    epochs= 50
 
-    data_save_path  = "/home/venky/time_delay_vp/models/THDloss_model_18_11_2022_11_17/scaled_test/"
-    model_save_path = "/home/venky/time_delay_vp/models/THDloss_model_18_11_2022_11_17/ACTVP_THD"
-    # test_data_dir   = "/home/venky/time_delay_vp/test_out/test_trial_0/"
-    exp_test_dir   = "/home/venky/time_delay_vp/test_out/"
+    # Uncomment if using laptop
+    # data_save_path  = "/home/venky/time_delay_vp/models/THDloss_model_18_11_2022_11_17/scaled_test/"
+    # model_save_path = "/home/venky/time_delay_vp/models/THDloss_model_18_11_2022_11_17/ACTVP_THD"
+    # exp_test_dir   = "/home/venky/time_delay_vp/test_out/"
+
+    # Uncomment if using cluster
+    data_save_path  = "/home/venkatesh/tdvp_all/teleop_data/models/THDloss_model_22_11_2022_15_52/test/"
+    model_save_path = "/home/venkatesh/tdvp_all/teleop_data/models/THDloss_model_22_11_2022_15_52/ACTVP_THD"
+    exp_test_dir = "/home/venkatesh/tdvp_all/teleop_data/test_out/"
 
     BG = BatchGenerator()
     t = Test(model_save_path)

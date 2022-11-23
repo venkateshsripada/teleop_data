@@ -18,13 +18,26 @@ image_width = 32
 context_length = 5
 horrizon_length = 2
 
-base_path = "/home/venky/time_delay_vp/"
+# Uncomment following if working on laptop
+# base_path = "/home/venky/time_delay_vp/"
+# train_data_dir = base_path + "train/"
+# test_data_dir = base_path + "test/"
+# scaler_out_dir = base_path + 'scalar_info_universal/'
+
+# train_out_dir = base_path + "train_out/"
+# test_out_dir = base_path + "test_out/"
+
+# Uncomment following if working on cluster
+base_path = "/media/venkatesh/Extreme SSD/pilot_object_data/push_object_data/"
 train_data_dir = base_path + "train/"
 test_data_dir = base_path + "test/"
-scaler_out_dir = base_path + 'scalar_info_universal/'
 
-train_out_dir = base_path + "train_out/"
-test_out_dir = base_path + "test_out/"
+save_path = "/home/venkatesh/tdvp_all/teleop_data/"
+scaler_out_dir = save_path + 'scaler_info_universal/'
+train_out_dir = save_path + "train_out/"
+test_out_dir = save_path + "test_out/"
+
+
 
 class data_formatter:
     def __init__(self):
@@ -48,8 +61,8 @@ class data_formatter:
 
     def scale_data(self):
         files = self.files_train + self.files_test
-        for file in tqdm(files):
-            robot_task, robot_joint, side_camera, meta = self.load_file_data(file)
+        for exp_no, file in tqdm(enumerate(files), desc="Scaling data"):
+            robot_task, robot_joint, side_camera, meta = self.load_file_data(file, exp_no+1)
             self.full_data_robot_task += list(robot_task)
             self.full_data_robot_joint += list(robot_joint)
 
@@ -78,10 +91,12 @@ class data_formatter:
             else:
                 files_to_run = self.files_test
 
-            for experiment_number, file in tqdm(enumerate(files_to_run)):
+            for experiment_number, file in tqdm(enumerate(files_to_run), desc = "Creating map"):
                 path_save = stage
 
-                robot_task, robot_joint, side_camera, meta = self.load_file_data(file)
+                if stage != train_out_dir:
+                    experiment_number += 33 
+                robot_task, robot_joint, side_camera, meta = self.load_file_data(file, experiment_number+1)
 
                 # scale the data
 
@@ -101,10 +116,6 @@ class data_formatter:
                 sequence_length = self.context_length + self.horrizon_length
 
                 # len(robot_joint) is placed for this exp, create a variable that takes the minimum of robot_joint amd robot_task
-                print("\n",robot_joint.shape)
-                print(robot_task.shape)
-                print(side_camera.shape)
-                print(len(side_camera))
                 iter_length = np.min([len(robot_joint), len(robot_task), len(side_camera)])
                 for time_step in range(iter_length - sequence_length):
                     robot_data_euler_sequence = [robot_task[time_step + t] for t in range(sequence_length)]
@@ -154,35 +165,30 @@ class data_formatter:
                 for row in self.path_file:
                     writer.writerow(row)
 
-    def load_file_data(self, file):
-        robot_task_state = np.load(file + '/task_space_' + file[-1] + '.npy')
-        robot_joint_state = np.load(file + '/joint_states_' + file[-1] + '.npy')
-        side_camera = self.reshape_image(file)
+    def load_file_data(self, file, exp_no):
+        robot_task_state = np.load(file + '/task_space_' + str(exp_no) + '.npy')
+        robot_joint_state = np.load(file + '/joint_states_' + str(exp_no) + '.npy')
+        side_camera = self.reshape_image(file, exp_no)
         # side_camera = np.load(file + '/side_camera_' + file[-1] + '.npy')
         # convert orientation to euler:
         robot_task_space = np.array([[state[-3], state[-2], state[-1]] + list(R.from_quat([state[-7], state[-6], state[-5], state[-4]]).as_euler('zyx', degrees=True)) for state in robot_task_state[1:]]).astype(float)
-        meta_data = np.load(file + '/meta_' + file[-1] + '.npy')
+        meta_data = np.load(file + '/meta_' + str(exp_no) + '.npy')
 
         return robot_task_space, robot_joint_state, side_camera, meta_data
 
     
-    def reshape_image(self, file):
+    def reshape_image(self, file, exp_no):
         all_reshaped = []
         # for exp_no in range(1, total_exps+1):
         try:
-            sc = np.load(file + '/side_camera_' + file[-1] + '.npy')
+            sc = np.load(file + '/side_camera_' + str(exp_no) + '.npy')
         except FileNotFoundError as e:
             print("No file exists: ", e)
-        saved = False
         for time_step in range(sc.shape[0]):
             img = Image.fromarray(sc[time_step], 'RGB')
             opencv_img = np.array(img)
             reshaped_image = cv2.resize(opencv_img, (self.image_height, self.image_width))
-
-            if not saved:
-                im_save = Image.fromarray(reshaped_image)
-                im_save.save("side_image_time_step_" + str(time_step) + ".jpeg")
-                saved = True
+            reshaped_image = reshaped_image/255 # Normalize data to 0-1; it is now in range 0-255
             all_reshaped.append(np.array(reshaped_image))
             # if self.side_image:
             #     image_name = "side_image_" + str(exp_no) + "_time_step_" + str(time_step) + ".npy"

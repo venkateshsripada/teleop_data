@@ -18,14 +18,21 @@ import torch.optim as optim
 import torchvision
 import torchvision.transforms as T
 
-model_save_path = "/home/venky/time_delay_vp/models/THDloss_"
-train_data_dir = "/home/venky/time_delay_vp/train_out/"
-test_data_dir = "/home/venky/time_delay_vp/test_out/"
-scaler_dir = "/home/venky/time_delay_vp/scalar_info_universal/"
+# Uncomment if using on laptop
+# model_save_path = "/home/venky/time_delay_vp/models/THDloss_"
+# train_data_dir = "/home/venky/time_delay_vp/train_out/"
+# test_data_dir = "/home/venky/time_delay_vp/test_out/"
+# scaler_dir = "/home/venky/time_delay_vp/scalar_info_universal/"
+
+# Uncomment if using on cluster
+model_save_path = "/home/venkatesh/tdvp_all/teleop_data/models/THDloss_"
+train_data_dir = "/home/venkatesh/tdvp_all/teleop_data/train_out/"
+test_data_dir = "/home/venkatesh/tdvp_all/teleop_data/test_out/"
+scaler_dir = "/home/venkatesh/tdvp_all/teleop_data/scaler_info_universal/"
 
 # unique save title:
 model_save_path = model_save_path + "model_" + datetime.now().strftime("%d_%m_%Y_%H_%M/")
-# os.mkdir(model_save_path)
+os.mkdir(model_save_path)
 
 seed = 42
 epochs = 50
@@ -301,7 +308,7 @@ class ModelTrainer:
                     print_val_losses += print_loss.item()
 
             plot_validation_loss.append(val_losses / index__)
-            print("Validation mean loss: {:.4f}, ".format(val_losses / index__) + " Validation MAE mean loss: {:.4f}, ".format(print_val_losses / index__))
+            print("\nValidation mean loss: {:.4f}, ".format(val_losses / index__) + " Validation MAE mean loss: {:.4f}, ".format(print_val_losses / index__))
 
             # save the train/validation performance data
             np.save(model_save_path + "plot_validation_loss", np.array(plot_validation_loss))

@@ -4,7 +4,7 @@ import matplotlib.pyplot as  plt
 from PIL import Image
 import PIL.ImageOps
 
-base_path = "/home/venky/time_delay_vp/"
+base_path = "/home/venkatesh/tdvp_all/teleop_data"
 train_path = "/train"
 test_path = "/test"
 
@@ -43,11 +43,13 @@ def loss_model():
     return test_arr, train_arr, val_arr
 
 def flip_image():
-    image = Image.open('Image_gt.jpeg')
+    for i in range(362, 439):
 
-    inverted_image = PIL.ImageOps.invert(image)
+        image = Image.open('Image_pred' + str(i) + '.jpeg')
 
-    inverted_image.save('Image_gt_flip.jpeg')
+        inverted_image = PIL.ImageOps.invert(image)
+
+        inverted_image.save('Image_pred_flip_' + str(i) + '.jpeg')
 
 # arr = load_data(1)
 # resize(1)
@@ -58,15 +60,15 @@ def flip_image():
 # print(array.shape)
 flip_image()
 
-test_arr, train_arr, val_arr = loss_model()
-x_test = range(1, len(test_arr)+1)
-x_train = range(len(train_arr))
-x_val = range(len(val_arr))
+# test_arr, train_arr, val_arr = loss_model()
+# x_test = range(1, len(test_arr)+1)
+# x_train = range(len(train_arr))
+# x_val = range(len(val_arr))
 
-plt.plot(x_test, test_arr)
-plt.xlabel("Test cases", fontsize = 25)
-plt.xticks(fontsize = 25)
-plt.ylabel("MAE",fontsize = 25)
-plt.yticks(fontsize = 25)
-plt.title("Test Loss", fontsize = 30)
-plt.show()
+# plt.plot(x_test, test_arr)
+# plt.xlabel("Test cases", fontsize = 25)
+# plt.xticks(fontsize = 25)
+# plt.ylabel("MAE",fontsize = 25)
+# plt.yticks(fontsize = 25)
+# plt.title("Test Loss", fontsize = 30)
+# plt.show()
